@@ -19,20 +19,17 @@ if [ ! -f "$INIT_SQL" ]; then
   exit 1
 fi
 
-for i in $(seq 1 30); do
+for i in $(seq 1 2); do
   db_name="db$i"
   user_name="team$i"
-  user_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c6)
+  user_pass=$(LC_ALL=C tr -dc 'A-Za-z0-9!?%=' < /dev/urandom | head -c 10)
 
-  echo "$user_name : $user_pass"
+  echo "$user_name : $user_pass" >> credentials.txt
 
   psql -U postgres -c "CREATE USER $user_name WITH PASSWORD '$user_pass';"
   psql -U postgres -c "CREATE DATABASE $db_name;"
   psql -U postgres -c "REVOKE ALL ON DATABASE $db_name FROM PUBLIC;"
   psql -U postgres -c "REVOKE ALL ON SCHEMA public FROM PUBLIC;"
   psql -U postgres -c "ALTER DATABASE $db_name OWNER TO $user_name;"
-  psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE $db_name TO $user_name;"
-  psql -U postgres -c "GRANT USAGE ON SCHEMA public TO $user_name;"
-  psql -U postgres -c "GRANT CREATE ON SCHEMA public TO $user_name;"
-  psql -U postgres -c "GRANT CONNECT ON DATABASE postgres TO $user_name;"
+  PGPASSWORD=$user_pass psql -h localhost -U "$user_name" -d "$db_name" -f "$INIT_SQL"
 done
